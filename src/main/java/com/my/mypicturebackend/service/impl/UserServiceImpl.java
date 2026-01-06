@@ -38,6 +38,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService {
 
     /**
+     * 判断是否为管理员
+     *
+     * @param user
+     * @return
+     */
+    @Override
+    public boolean isAdmin(User user) {
+        return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
+    }
+
+
+    /**
      * 用户注册
      *
      * @param userAccount   用户账户
