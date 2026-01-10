@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.my.mypicturebackend.exception.BusinessException;
 import com.my.mypicturebackend.exception.ErrorCode;
 import com.my.mypicturebackend.exception.ThrowUtils;
+import com.my.mypicturebackend.manager.CosManager;
 import com.my.mypicturebackend.manager.FileManager;
 import com.my.mypicturebackend.manager.upload.FilePictureUpload;
 import com.my.mypicturebackend.manager.upload.PictureUploadTemplate;
@@ -33,13 +34,14 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.BeanUtils;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +70,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     @Resource
     private UrlPictureUpload urlPictureUpload;
 
+    @Resource
+    private CosManager cosManager;
+
     /**
      * 上传图片
      *
@@ -84,7 +89,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         if (pictureUploadRequest != null) {
             pictureId = pictureUploadRequest.getId();
         }
-        // 如果是更新图片，需要校验图片是否存在
+        // 如果是更新图片，需要校验图片是否存在。之后删除COS中的图片
         if (pictureId != null) {
             Picture oldPicture = this.getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
@@ -92,6 +97,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
             }
+            // 删除COS里的图片
+            clearPictureFile(oldPicture);
         }
         // 上传图片到公共图库，得到信息
         // 按照用户 id 划分目录
@@ -108,7 +115,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 构造要入库的图片信息
         Picture picture = new Picture();
         picture.setUrl(uploadPictureResult.getUrl());
-
+        picture.setThumbnailUrl(uploadPictureResult.getThumbnailUrl());
         // 默认是系统提供名称，但指定了名称就按指定的来
         String picName = uploadPictureResult.getPicName();
         if (pictureUploadRequest != null && StrUtil.isNotBlank(pictureUploadRequest.getPicName())) {
@@ -406,7 +413,41 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return uploadCount;
     }
 
+    /**
+     * 异步清理COS的图片文件、
+     * 删除COS上的压缩图片、缩略图。原图不会清理
+     * todo 后续考虑清理原图
+     * @param oldPicture
+     */
+    @Async
+    @Override
+    public void clearPictureFile(Picture oldPicture) {
+        // 判断该图片是否被多条记录使用
+        String pictureUrl = oldPicture.getUrl();
+        long count = this.lambdaQuery()
+                .eq(Picture::getUrl, pictureUrl)
+                .count();
+        // 有不止一条记录用到了该图片，不清理
+        if (count > 1) {
+            return;
+        }
+        try {
+            // 提取路径部分
+            String picturePath = new URL(pictureUrl).getPath();
 
+            cosManager.deleteObject(picturePath);
+
+            // 清理缩略图
+            String thumbnailUrl = oldPicture.getThumbnailUrl();
+            if (StrUtil.isNotBlank(thumbnailUrl)) {
+                String thumbnailPath = new URL(thumbnailUrl).getPath();
+                cosManager.deleteObject(thumbnailPath);
+            }
+        } catch (MalformedURLException e) {
+            log.error("处理图片删除时遇到格式错误的 URL。图片 URL: {}", pictureUrl, e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "格式错误的 URL");
+        }
+    }
 
 }
 
