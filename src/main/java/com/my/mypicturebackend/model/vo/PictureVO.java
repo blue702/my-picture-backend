@@ -15,8 +15,8 @@ public class PictureVO implements Serializable {
     /**  
      * id  
      */  
-    private Long id;  
-  
+    private Long id;
+
     /**  
      * 图片 url  
      */  
@@ -70,7 +70,12 @@ public class PictureVO implements Serializable {
     /**  
      * 用户 id  
      */  
-    private Long userId;  
+    private Long userId;
+
+    /**
+     * 空间 id
+     */
+    private Long spaceId;
   
     /**  
      * 创建时间  

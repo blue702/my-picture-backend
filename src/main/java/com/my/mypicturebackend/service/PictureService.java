@@ -3,10 +3,7 @@ package com.my.mypicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.my.mypicturebackend.model.dto.picture.PictureQueryRequest;
-import com.my.mypicturebackend.model.dto.picture.PictureReviewRequest;
-import com.my.mypicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.my.mypicturebackend.model.dto.picture.PictureUploadRequest;
+import com.my.mypicturebackend.model.dto.picture.*;
 import com.my.mypicturebackend.model.entity.Picture;
 import com.my.mypicturebackend.model.entity.User;
 import com.my.mypicturebackend.model.vo.PictureVO;
@@ -33,6 +30,23 @@ public interface PictureService extends IService<Picture> {
     PictureVO uploadPicture(Object inputSource,
                             PictureUploadRequest pictureUploadRequest,
                             User loginUser);
+
+
+    /**
+     * 删除图片
+     *
+     * @param pictureId
+     * @param loginUser
+     */
+    void deletePicture(long pictureId, User loginUser);
+
+    /**
+     * 编辑图片（用户使用）
+     *
+     * @param pictureEditRequest
+     * @param loginUser
+     */
+    void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
 
     /**
      * 获取查询条件的QueryWrapper
@@ -95,7 +109,19 @@ public interface PictureService extends IService<Picture> {
             User loginUser
     );
 
-
+    /**
+     * 异步清理COS的图片文件、
+     * 删除COS上的压缩图片、缩略图。原图不会清理
+     * @param oldPicture
+     */
     @Async
     void clearPictureFile(Picture oldPicture);
+
+    /**
+     * 检查图片所处空间和权限
+     * 区分是公共图库还是私有空间
+     * @param loginUser
+     * @param picture
+     */
+    void checkPictureAuth(User loginUser, Picture picture);
 }
