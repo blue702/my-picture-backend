@@ -5,6 +5,8 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.conditions.update.LambdaUpdateChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.my.mypicturebackend.exception.BusinessException;
@@ -113,8 +115,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             pictureId = pictureUploadRequest.getId();
         }
         // 如果是更新图片，需要校验图片是否存在。之后删除COS中的图片
+        Picture oldPicture = null;
         if (pictureId != null) {
-            Picture oldPicture = this.getById(pictureId);
+            oldPicture = this.getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
             // 仅本人或管理员可编辑
             if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
@@ -180,6 +183,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         picture.setPicScale(uploadPictureResult.getPicScale());
         picture.setPicFormat(uploadPictureResult.getPicFormat());
         picture.setUserId(loginUser.getId());
+        if(pictureUploadRequest.getSpaceId() != null){
+            picture.setSpaceId(pictureUploadRequest.getSpaceId());
+        }
         // 填充审核参数
         this.fillReviewParams(picture, loginUser);
         // 如果 pictureId 不为空，表示更新，否则是新增
@@ -191,17 +197,33 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
         // 开启事务
         Long finalSpaceId = spaceId;
+        long oldPictureSize = oldPicture != null ? oldPicture.getPicSize() : 0;
+        Picture finalOldPicture = oldPicture;
         transactionTemplate.execute(status -> {
             // 保存图片信息
             boolean result = this.saveOrUpdate(picture);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "图片上传失败");
             if (finalSpaceId != null) {
                 // 更新空间额度
-                boolean update = spaceService.lambdaUpdate()
+                long sizeChange = picture.getPicSize() - oldPictureSize;
+                String sizeSql = sizeChange >= 0
+                        ? "totalSize = totalSize + " + Math.abs(sizeChange)
+                        : "totalSize = totalSize - " + Math.abs(sizeChange);
+
+                // 区分新增和更新：如果是更新操作（oldPicture != null），totalCount 不变；如果是新增操作，totalCount +1
+                String countSql = finalOldPicture != null
+                        ? ""
+                        : "totalCount = totalCount + 1";
+
+                LambdaUpdateChainWrapper<Space> updateWrapper = spaceService.lambdaUpdate()
                         .eq(Space::getId, finalSpaceId)
-                        .setSql("totalSize = totalSize + " + picture.getPicSize())
-                        .setSql("totalCount = totalCount + 1")
-                        .update();
+                        .setSql(sizeSql);
+
+                if (StrUtil.isNotBlank(countSql)) {
+                    updateWrapper.setSql(countSql);
+                }
+
+                boolean update = updateWrapper.update();
                 ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "额度更新失败");
             }
             return picture;
@@ -269,6 +291,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
         // 校验权限
         checkPictureAuth(loginUser, oldPicture);
+        // 是否有空间id，判断图片是公共的还是私有的
+        Long spaceId = oldPicture.getSpaceId();
+        if (spaceId != null) {
+            picture.setSpaceId(spaceId);
+        }
         // 补充审核参数
         this.fillReviewParams(picture, loginUser);
         // 操作数据库
@@ -465,9 +492,17 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             picture.setReviewerId(loginUser.getId());
             picture.setReviewMessage("管理员自动过审");
             picture.setReviewTime(new Date());
+        } else if (picture.getSpaceId() != null) {
+            // 私有空间自动过审
+            picture.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+            picture.setReviewerId(loginUser.getId());
+            picture.setReviewMessage("私有空间自动过审");
+            picture.setReviewTime(new Date());
         } else {
             // 非管理员，创建或编辑都要改为待审核
             picture.setReviewStatus(PictureReviewStatusEnum.REVIEWING.getValue());
+            picture.setReviewerId(null);
+            picture.setReviewMessage("");
         }
     }
 
