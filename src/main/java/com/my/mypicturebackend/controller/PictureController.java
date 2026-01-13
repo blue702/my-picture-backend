@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.my.mypicturebackend.annotation.AuthCheck;
+import com.my.mypicturebackend.api.imagesearch.ImageSearchApiFacade;
+import com.my.mypicturebackend.api.imagesearch.model.ImageSearchResult;
 import com.my.mypicturebackend.common.BaseResponse;
 import com.my.mypicturebackend.common.DeleteRequest;
 import com.my.mypicturebackend.common.ResultUtils;
@@ -349,4 +351,20 @@ public class PictureController {
         return ResultUtils.success(uploadCount);
     }
 
+    /**
+     * 以图搜图
+     * todo 百度搜图接口有时不支持webp，后续上传图片时保留原图url
+     */
+    @PostMapping("/search/picture")
+    public BaseResponse<List<ImageSearchResult>> searchPictureByPicture(@RequestBody SearchPictureByPictureRequest searchPictureByPictureRequest) {
+        ThrowUtils.throwIf(searchPictureByPictureRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = searchPictureByPictureRequest.getPictureId();
+        ThrowUtils.throwIf(pictureId == null || pictureId <= 0, ErrorCode.PARAMS_ERROR);
+        Picture oldPicture = pictureService.getById(pictureId);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        List<ImageSearchResult> resultList = ImageSearchApiFacade.searchImage(oldPicture.getUrl());
+        return ResultUtils.success(resultList);
+    }
+
 }
+
