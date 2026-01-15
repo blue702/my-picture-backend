@@ -81,7 +81,7 @@ public class CosManager {
             String thumbnailKey = FileUtil.mainName(key) + "_thumbnail." + FileUtil.getSuffix(key);
             thumbnailRule.setFileId(thumbnailKey);
             // 缩放规则 /thumbnail/<Width>x<Height>>（如果大于原图宽高，则不处理）
-            thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>", 400, 400));
+            thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>", 520, 520));
             rules.add(thumbnailRule);
         }
 
