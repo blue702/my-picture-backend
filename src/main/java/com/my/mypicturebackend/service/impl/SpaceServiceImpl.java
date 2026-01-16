@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 * @createDate 2026-01-11 12:40:11
 */
 @Service
-public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
+        public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
     implements SpaceService{
 
     @Resource
@@ -231,6 +231,17 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
                 space.setMaxCount(maxCount);
             }
         }
+    }
+
+    /**
+     * 检查空间权限
+     * @param loginUser
+     * @param space
+     */
+    @Override
+    public void checkSpaceAuth(User loginUser, Space space) {
+        if(!space.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser))
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限访问");
     }
 
 }

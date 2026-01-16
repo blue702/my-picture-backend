@@ -54,6 +54,13 @@ public class SpaceController {
         return ResultUtils.success(newId);
     }
 
+    /**
+     * 删除空间
+     *
+     * @param deleteRequest
+     * @param request
+     * @return
+     */
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteSpace(@RequestBody DeleteRequest deleteRequest
             , HttpServletRequest request) {
@@ -66,8 +73,9 @@ public class SpaceController {
         Space oldSpace = spaceService.getById(id);
         ThrowUtils.throwIf(oldSpace == null, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或者管理员可删除
-        //spaceService.checkSpaceAuth(loginUser, oldSpace);
+        spaceService.checkSpaceAuth(loginUser, oldSpace);
         // 操作数据库
+        // todo 删除空间下的所有图片
         boolean result = spaceService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
@@ -190,7 +198,7 @@ public class SpaceController {
         Space oldSpace = spaceService.getById(id);
         ThrowUtils.throwIf(oldSpace == null, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可编辑
-        //spaceService.checkSpaceAuth(loginUser, oldSpace);
+        spaceService.checkSpaceAuth(loginUser, oldSpace);
         // 操作数据库
         boolean result = spaceService.updateById(space);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
