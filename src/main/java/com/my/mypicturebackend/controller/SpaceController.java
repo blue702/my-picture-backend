@@ -9,6 +9,7 @@ import com.my.mypicturebackend.constant.UserConstant;
 import com.my.mypicturebackend.exception.BusinessException;
 import com.my.mypicturebackend.exception.ErrorCode;
 import com.my.mypicturebackend.exception.ThrowUtils;
+import com.my.mypicturebackend.manager.auth.SpaceUserAuthManager;
 import com.my.mypicturebackend.model.dto.space.*;
 import com.my.mypicturebackend.model.entity.Space;
 import com.my.mypicturebackend.model.entity.User;
@@ -38,6 +39,8 @@ public class SpaceController {
     @Resource
     private SpaceService spaceService;
 
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     /**
      * 添加空间
@@ -138,8 +141,8 @@ public class SpaceController {
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
         SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
         User loginUser = userService.getLoginUser(request);
-        //List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
-        //spaceVO.setPermissionList(permissionList);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
         // 获取封装类
         return ResultUtils.success(spaceVO);
     }

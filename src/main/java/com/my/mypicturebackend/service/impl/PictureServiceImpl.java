@@ -256,7 +256,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture oldPicture = this.getById(pictureId);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
         // 校验权限
-        checkPictureAuth(loginUser, oldPicture);
+        // 已改为sa-token鉴权
+        //checkPictureAuth(loginUser, oldPicture);
         // 开启事务
         transactionTemplate.execute(status -> {
             // 操作数据库
@@ -300,7 +301,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture oldPicture = this.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
         // 校验权限
-        checkPictureAuth(loginUser, oldPicture);
+        // 已改为sa-token鉴权
+        //checkPictureAuth(loginUser, oldPicture);
         // 是否有空间id，判断图片是公共的还是私有的
         Long spaceId = oldPicture.getSpaceId();
         if (spaceId != null) {
@@ -803,7 +805,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture picture = Optional.ofNullable(this.getById(pictureId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND_ERROR));
         // 权限校验
-        checkPictureAuth(loginUser, picture);
+        // 已改为sa-token鉴权
+        //checkPictureAuth(loginUser, picture);
         // 图片大小不能超过10mb
         if (picture.getPicSize() > 10 * 1024 * 1024) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "图片大小不能超过10MB");
