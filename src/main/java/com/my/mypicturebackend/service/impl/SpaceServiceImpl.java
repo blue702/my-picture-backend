@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.my.mypicturebackend.exception.BusinessException;
 import com.my.mypicturebackend.exception.ErrorCode;
 import com.my.mypicturebackend.exception.ThrowUtils;
+import com.my.mypicturebackend.manager.sharding.DynamicShardingManager;
 import com.my.mypicturebackend.model.dto.space.SpaceAddRequest;
 import com.my.mypicturebackend.model.dto.space.SpaceQueryRequest;
 import com.my.mypicturebackend.model.entity.Space;
@@ -24,6 +25,8 @@ import com.my.mypicturebackend.mapper.SpaceMapper;
 import com.my.mypicturebackend.service.SpaceUserService;
 import com.my.mypicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -51,6 +54,9 @@ import java.util.stream.Collectors;
     @Resource
     private SpaceUserService spaceUserService;
 
+//    @Resource
+//    @Lazy
+//    private DynamicShardingManager dynamicShardingManager;
 
     Map<Long, Object> lockMap = new ConcurrentHashMap<>();
 
@@ -123,6 +129,9 @@ import java.util.stream.Collectors;
                         result = spaceUserService.save(spaceUser);
                         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建团队成员记录失败");
                     }
+                    // 创建空间图片表（只对团队空间生效）--该功能已关闭
+                    //dynamicShardingManager.createSpacePictureTable(space);
+
                     // 返回新写入的数据 id
                     return space.getId();
                 });

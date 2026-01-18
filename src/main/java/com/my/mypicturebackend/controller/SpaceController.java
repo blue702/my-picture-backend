@@ -78,7 +78,7 @@ public class SpaceController {
         // 仅本人或者管理员可删除
         spaceService.checkSpaceAuth(loginUser, oldSpace);
         // 操作数据库
-        // todo 删除空间下的所有图片
+        // todo 删除空间下的所有图片，和空间成员
         boolean result = spaceService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
