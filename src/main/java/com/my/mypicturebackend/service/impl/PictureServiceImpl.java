@@ -105,10 +105,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         if (spaceId != null) {
             Space space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-            // 必须空间创建人（管理员）才能上传
-            if (!loginUser.getId().equals(space.getUserId())) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
-            }
+            // 已改为sa-token鉴权
+//            // 必须空间创建人（管理员）才能上传
+//            if (!loginUser.getId().equals(space.getUserId())) {
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
+//            }
             // 校验额度
             if (space.getTotalCount() >= space.getMaxCount()) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "空间条数不足");
@@ -127,10 +128,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         if (pictureId != null) {
             oldPicture = this.getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+            // 已改为sa-token鉴权
             // 仅本人或管理员可编辑
-            if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-            }
+//            if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+//            }
 
             // 校验空间是否一致
             // 没传 spaceId，则复用原有图片的 spaceId
@@ -673,9 +675,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 2. 校验空间权限
         Space space = spaceService.getById(spaceId);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        if (!loginUser.getId().equals(space.getUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
-        }
+//        if (!loginUser.getId().equals(space.getUserId())) {
+//            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
+//        }
         // 3. 查询该空间下所有图片（必须有主色调）
         List<Picture> pictureList = this.lambdaQuery()
                 .eq(Picture::getSpaceId, spaceId)
@@ -737,9 +739,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 2. 校验空间权限
         Space space = spaceService.getById(spaceId);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        if (!loginUser.getId().equals(space.getUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
-        }
+//        if (!loginUser.getId().equals(space.getUserId())) {
+//            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
+//        }
 
         // 3. 查询指定图片，仅选择需要的字段
         List<Picture> pictureList = this.lambdaQuery()
