@@ -9,6 +9,7 @@ import javax.annotation.Resource;
 
 /**
  * WebSocket配置类
+ * 类似于编写 Spring MVC 的 Controller 接口，可以为指定的路径配置处理器和拦截器：
  */
 @Configuration
 @EnableWebSocket

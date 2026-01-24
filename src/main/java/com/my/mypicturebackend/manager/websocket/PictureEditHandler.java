@@ -11,6 +11,7 @@ import com.my.mypicturebackend.manager.websocket.model.PictureEditMessageTypeEnu
 import com.my.mypicturebackend.manager.websocket.model.PictureEditRequestMessage;
 import com.my.mypicturebackend.manager.websocket.model.PictureEditResponseMessage;
 import com.my.mypicturebackend.model.entity.User;
+import com.my.mypicturebackend.model.vo.UserVO;
 import com.my.mypicturebackend.service.UserService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -63,6 +64,20 @@ public class PictureEditHandler extends TextWebSocketHandler {
         pictureEditResponseMessage.setUser(userService.getUserVO(user));
         // 广播给同一张图片的用户
         broadcastToPicture(pictureId, pictureEditResponseMessage);
+        // 如果是后进来的的用户，就把当前正在编辑的用户返回出去
+        Long editingUserId = pictureEditingUsers.get(pictureId);
+        if(editingUserId != null && !editingUserId.equals(user.getId())) {
+            User editingUser = userService.getById(editingUserId);
+            if(editingUser != null) {
+                // 构造响应
+                pictureEditResponseMessage.setType(PictureEditMessageTypeEnum.ENTER_EDIT.getValue());
+                String msg = String.format("%s正在编辑", editingUser.getUserName());
+                pictureEditResponseMessage.setMessage(msg);
+                pictureEditResponseMessage.setUser(userService.getUserVO(editingUser));
+                broadcastToPictureToMe(pictureId, pictureEditResponseMessage,session);
+            }
+        }
+
     }
 
 
@@ -211,6 +226,31 @@ public class PictureEditHandler extends TextWebSocketHandler {
      */
     private void broadcastToPicture(Long pictureId, PictureEditResponseMessage pictureEditResponseMessage) throws Exception {
         broadcastToPicture(pictureId, pictureEditResponseMessage, null);
+    }
+
+    // 只广播给自己
+    private void broadcastToPictureToMe(Long pictureId, PictureEditResponseMessage pictureEditResponseMessage, WebSocketSession mySession) throws Exception {
+        Set<WebSocketSession> sessionSet = pictureSessions.get(pictureId);
+        if (CollUtil.isNotEmpty(sessionSet)) {
+            // 创建 ObjectMapper
+            ObjectMapper objectMapper = new ObjectMapper();
+            // 配置序列化：将 Long 类型转为 String，解决丢失精度问题
+            SimpleModule module = new SimpleModule();
+            module.addSerializer(Long.class, ToStringSerializer.instance);
+            module.addSerializer(Long.TYPE, ToStringSerializer.instance); // 支持 long 基本类型
+            objectMapper.registerModule(module);
+            // 序列化为 JSON 字符串
+            String message = objectMapper.writeValueAsString(pictureEditResponseMessage);
+            TextMessage textMessage = new TextMessage(message);
+            for (WebSocketSession session : sessionSet) {
+                // 自己的 session 才发送
+                if (mySession != null && mySession.equals(session)) {
+                    if (session.isOpen()) {
+                        session.sendMessage(textMessage);
+                    }
+                }
+            }
+        }
     }
 
 }
