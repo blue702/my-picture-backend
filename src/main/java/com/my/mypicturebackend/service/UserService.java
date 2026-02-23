@@ -2,10 +2,12 @@ package com.my.mypicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.my.mypicturebackend.model.dto.user.UserQueryRequest;
+import com.my.mypicturebackend.model.dto.user.UserUpdateRequest;
 import com.my.mypicturebackend.model.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.my.mypicturebackend.model.vo.LoginUserVO;
 import com.my.mypicturebackend.model.vo.UserVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -100,4 +102,13 @@ public interface UserService extends IService<User> {
      * @return
      */
     QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest);
+
+    /**
+     * 更新用户信息
+     *
+     * @param multipartFile
+     * @param userUpdateRequest
+     * @param loginUser
+     */
+    void updateUser(MultipartFile multipartFile, UserUpdateRequest userUpdateRequest,User loginUser);
 }

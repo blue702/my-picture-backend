@@ -28,6 +28,9 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
+/**
+ * 空间用户接口
+ */
 @RestController
 @RequestMapping("/spaceUser")
 @Slf4j

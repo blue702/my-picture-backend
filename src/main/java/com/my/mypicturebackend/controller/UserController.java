@@ -5,10 +5,12 @@ import com.my.mypicturebackend.annotation.AuthCheck;
 import com.my.mypicturebackend.common.BaseResponse;
 import com.my.mypicturebackend.common.DeleteRequest;
 import com.my.mypicturebackend.common.ResultUtils;
+import com.my.mypicturebackend.config.CosClientConfig;
 import com.my.mypicturebackend.constant.UserConstant;
 import com.my.mypicturebackend.exception.BusinessException;
 import com.my.mypicturebackend.exception.ErrorCode;
 import com.my.mypicturebackend.exception.ThrowUtils;
+import com.my.mypicturebackend.manager.CosManager;
 import com.my.mypicturebackend.model.dto.user.*;
 import com.my.mypicturebackend.model.entity.User;
 import com.my.mypicturebackend.model.vo.LoginUserVO;
@@ -16,11 +18,15 @@ import com.my.mypicturebackend.model.vo.UserVO;
 import com.my.mypicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
+/**
+ * 用户接口
+ */
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -28,10 +34,13 @@ public class UserController {
     @Resource
     private UserService userService;
 
+    @Resource
+    private CosManager cosManager;
+
     /**
      * 用户注册
      */
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    //@AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
         ThrowUtils.throwIf(userRegisterRequest == null, ErrorCode.PARAMS_ERROR);
@@ -131,19 +140,28 @@ public class UserController {
     }
 
     /**
-     * 更新用户（仅管理员）
+     * 更新用户
      *
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
+    //@AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> updateUser(
+            @RequestPart(value = "file", required = false) MultipartFile multipartFile,
+            UserUpdateRequest userUpdateRequest,
+            HttpServletRequest request) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        User user = new User();
-        BeanUtils.copyProperties(userUpdateRequest, user);
-        boolean result = userService.updateById(user);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+
+        User loginUser = userService.getLoginUser(request);
+
+        if(!userUpdateRequest.getId().equals(userService.getLoginUser(request).getId()) && !userService.isAdmin(loginUser)){
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+
+        userService.updateUser(multipartFile, userUpdateRequest,loginUser);
+
+
         return ResultUtils.success(true);
     }
 

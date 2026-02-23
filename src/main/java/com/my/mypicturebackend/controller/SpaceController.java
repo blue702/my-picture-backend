@@ -28,6 +28,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 空间接口
+ */
 @Slf4j
 @RestController
 @RequestMapping("/space")

@@ -30,6 +30,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 空间分析接口
+ */
 @RestController
 @RequestMapping("/space/analyze")
 public class SpaceAnalyzeController {

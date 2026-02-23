@@ -1,14 +1,19 @@
 package com.my.mypicturebackend.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.my.mypicturebackend.config.CosClientConfig;
 import com.my.mypicturebackend.exception.BusinessException;
 import com.my.mypicturebackend.exception.ErrorCode;
+import com.my.mypicturebackend.exception.ThrowUtils;
+import com.my.mypicturebackend.manager.CosManager;
 import com.my.mypicturebackend.manager.auth.StpKit;
 import com.my.mypicturebackend.model.dto.user.UserQueryRequest;
+import com.my.mypicturebackend.model.dto.user.UserUpdateRequest;
 import com.my.mypicturebackend.model.entity.User;
 import com.my.mypicturebackend.model.enums.UserRoleEnum;
 import com.my.mypicturebackend.model.vo.LoginUserVO;
@@ -19,11 +24,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.my.mypicturebackend.constant.UserConstant.USER_LOGIN_STATE;
@@ -37,6 +46,12 @@ import static com.my.mypicturebackend.constant.UserConstant.USER_LOGIN_STATE;
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService {
+
+    @Resource
+    private CosManager cosManager;
+
+    @Resource
+    private CosClientConfig cosClientConfig;
 
     /**
      * 判断是否为管理员
@@ -88,6 +103,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setUserPassword(encryptPassword);
         user.setUserName(userAccount);
         user.setUserRole(UserRoleEnum.USER.getValue());
+        user.setUserAvatar(cosClientConfig.getHost() + "/avatar/avatar.png");
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
@@ -263,7 +279,66 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return queryWrapper;
     }
 
+    @Override
+    public void updateUser(MultipartFile multipartFile, UserUpdateRequest userUpdateRequest, User loginUser) {
+        // 1. 先获取**被修改的目标用户**信息（关键修复点）
+        Long targetUserId = userUpdateRequest.getId();
+        User targetUser = getById(targetUserId);
+        if (targetUser == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "目标用户不存在");
+        }
 
+        if(multipartFile != null) {
+            // 2. 删除原头像：使用目标用户的头像，而非登录用户（管理员）的头像
+            if (StrUtil.isNotBlank(targetUser.getUserAvatar())) {
+                // 直接获取文件名（包含后缀）
+                String result = FileUtil.getName(targetUser.getUserAvatar());
+                System.out.println(result);
+                // 默认头像不删除
+                if(!Objects.equals(result, "avatar.png")){
+                    System.out.println("执行删除操作");
+                    cosManager.deleteObject("avatar/" + result);
+                }
+            }
+
+            // 文件名：使用目标用户ID，避免冲突
+            String filename = targetUserId + "-" + multipartFile.getOriginalFilename();
+            // 文件目录
+            String filepath = String.format("/avatar/%s", filename);
+            File file = null;
+            try {
+                // 上传文件
+                file = File.createTempFile(filepath, null); // 创建临时文件
+                // 将上传的 multipartFile 内容写入到这个临时文件中
+                multipartFile.transferTo(file);
+                cosManager.putObject(filepath, file);
+            } catch (Exception e) {
+                log.error("file upload error, filepath = {}", filepath, e);
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
+            } finally {
+                if (file != null) {
+                    // 删除临时文件
+                    boolean delete = file.delete();
+                    if (!delete) {
+                        log.error("file delete error, filepath = {}", filepath);
+                    }
+                }
+            }
+            // 3. 设置目标用户的新头像路径
+            userUpdateRequest.setUserAvatar(cosClientConfig.getHost() + filepath);
+        }
+
+        // 更新用户信息
+        if(userUpdateRequest.getUserPassword() != null){
+            String encryptPassword = getEncryptPassword(userUpdateRequest.getUserPassword());
+            userUpdateRequest.setUserPassword(encryptPassword);
+        }
+
+        User user = new User();
+        BeanUtils.copyProperties(userUpdateRequest, user);
+        boolean result = updateById(user);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+    }
 }
 
 
